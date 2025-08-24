@@ -36,4 +36,86 @@ export interface User {
     updated_at: string;
 }
 
+export interface Permission {
+    id: number;
+    name: string;
+    guard_name: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Role {
+    id: number;
+    name: string;
+    guard_name: string;
+    permissions: Permission[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface SalesPerson {
+    id: string;
+    name: string;
+    code: string;
+    email?: string;
+    phone?: string;
+    type?: 'Sales Representative' | 'Distributor';
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Customer {
+    id: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    county_id?: number;
+    constituency_id?: number;
+    ward_id?: number;
+    sales_person_id?: string;
+    route_id?: string;
+    is_active: boolean;
+    sales_person?: SalesPerson;
+    route?: Route;
+    county?: Boundary;
+    constituency?: Boundary;
+    ward?: Boundary;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Route {
+    id: string;
+    name: string;
+    line: string;
+    description: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Partner {
+    id: string;
+    name: string;
+    link?: string;
+    photo?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Boundary {
+    id: number;
+    name: string;
+    code: number;
+    type: 'county' | 'constituency' | 'ward';
+    parent_type: string;
+    parent_code: string;
+    geometry?: object;
+    created_at: string;
+    updated_at: string;
+}
+
 export type BreadcrumbItemType = BreadcrumbItem;
