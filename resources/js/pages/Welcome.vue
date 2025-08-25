@@ -3,7 +3,7 @@ import { updateTheme } from '@/composables/useAppearance';
 import { Head, Link } from '@inertiajs/vue3';
 import AppearanceToggle from '../components/AppearanceToggle.vue';
 import MainMap from '../components/custom/MainMap.vue';
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, computed } from 'vue';
 
 const {api_key, counties, constituencies, wards, boundaries} = defineProps({
 	api_key: String,
@@ -26,6 +26,7 @@ const {api_key, counties, constituencies, wards, boundaries} = defineProps({
 });
 
 const mapHeight = ref('900px');
+
 
 onMounted(async () => {
 	await nextTick();

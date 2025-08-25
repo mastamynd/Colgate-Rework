@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 defineProps<{
     title?: string;
     description?: string;
 }>();
+
+const page = usePage();
+
+const flashMessage = computed(() => page.props.flash?.success || page.props.flash?.error);
+const flashType = computed(() => page.props.flash?.success ? 'success' : 'error');
 </script>
 
 <template>
@@ -24,6 +30,15 @@ defineProps<{
                         <p class="text-center text-sm text-muted-foreground">{{ description }}</p>
                     </div>
                 </div>
+                
+                <!-- Flash Messages -->
+                <div v-if="flashMessage" class="rounded-md p-4 text-sm" :class="{
+                    'bg-green-50 text-green-800 border border-green-200': flashType === 'success',
+                    'bg-red-50 text-red-800 border border-red-200': flashType === 'error'
+                }">
+                    {{ flashMessage }}
+                </div>
+                
                 <slot />
             </div>
         </div>

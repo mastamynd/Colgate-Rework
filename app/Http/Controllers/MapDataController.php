@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\MapData;
 use App\Models\User;
+use App\Imports\MapDataRowDataImport;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException;
 
 class MapDataController extends Controller
 {
@@ -33,7 +36,7 @@ class MapDataController extends Controller
 			$search = $request->search;
 			$query->where(function ($q) use ($search) {
 				$q->where('name', 'like', "%{$search}%")
-				  ->orWhere('description', 'like', "%{$search}%");
+					->orWhere('description', 'like', "%{$search}%");
 			});
 		}
 
@@ -107,7 +110,7 @@ class MapDataController extends Controller
 		if ($request->filled('map_data_rows')) {
 			// Delete existing rows
 			$mapData->mapDataRows()->delete();
-			
+
 			// Create new rows
 			foreach ($request->map_data_rows as $rowData) {
 				$mapData->mapDataRows()->create([
@@ -179,66 +182,58 @@ class MapDataController extends Controller
 		try {
 			// Get the map data
 			$mapData = MapData::findOrFail($request->map_data_id);
-			
-			// Delete existing rows for this map data
-			$mapData->mapDataRows()->delete();
-			
-			// Import Excel data using Laravel Excel
-			$import = new class {
-				public $rows = [];
-				public $headers = [];
-				
-				public function collection($rows)
-				{
-					// First row contains headers
-					if (empty($this->headers)) {
-						$this->headers = array_map('strval', $rows->first()->toArray());
-						$rows = $rows->slice(1); // Remove header row
-					}
-					
-					// Process data rows
-					foreach ($rows as $row) {
-						$rowArray = $row->toArray();
-						
-						// Create JSON object from row data
-						$rowData = [];
-						foreach ($this->headers as $index => $header) {
-							$value = $rowArray[$index] ?? null;
-							$rowData[$header] = $value;
-						}
-						
-						$this->rows[] = $rowData;
-					}
+
+			$import = new MapDataRowDataImport($mapData);
+
+			try {
+				Excel::import($import, $request->file('excel_file'));
+
+				$rowsCreated = $import->getRowsCreated();
+				$errors = $import->getErrors();
+
+				dd($rowsCreated, $errors);
+
+				// Check for any errors during import
+				if (!empty($errors)) {
+					return redirect()->back()->with([
+						'success' => 'Excel file imported with some errors.',
+						'data' => [
+							'rows_created' => $rowsCreated,
+							'errors' => $errors
+						]
+					]);
 				}
-			};
-			
-			// Import the Excel file
-			\Maatwebsite\Excel\Facades\Excel::import($import, $request->file('excel_file'));
-			
-			if (count($import->rows) === 0) {
-				return response()->json([
-					'message' => 'Excel file must contain at least a header row and one data row.'
-				], 400);
-			}
-			
-			// Create map data rows
-			$rowsCreated = 0;
-			foreach ($import->rows as $rowData) {
-				$mapData->mapDataRows()->create([
-					'data' => $rowData
+
+				return redirect()->back()->with([
+					'success' => 'Excel data uploaded successfully.',
+					'data' => [
+						'rows_created' => $rowsCreated
+					]
 				]);
-				$rowsCreated++;
+			} catch (ValidationException $e) {
+				// Handle validation errors
+				$failures = $e->failures();
+				$validationErrors = [];
+
+				foreach ($failures as $failure) {
+					$validationErrors[] = [
+						'row' => $failure->row(),
+						'attribute' => $failure->attribute(),
+						'errors' => $failure->errors(),
+						'values' => $failure->values()
+					];
+				}
+
+				return redirect()->back()->withErrors([
+					'excel_file' => 'Validation errors occurred during import.'. $e->getMessage()
+				])->with([
+					'validation_errors' => $validationErrors
+				]);
 			}
-			
-			return response()->json([
-				'message' => 'Excel data uploaded successfully.',
-				'rows_created' => $rowsCreated
-			]);
-			
 		} catch (\Exception $e) {
-			return response()->json([
-				'message' => 'Error processing Excel file: ' . $e->getMessage()
-			], 500);
+			return redirect()->back()->withErrors([
+				'excel_file' => 'Error processing Excel file: ' . $e->getMessage()
+			]);
 		}
 	}
 

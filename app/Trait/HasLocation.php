@@ -11,7 +11,7 @@ trait HasLocation
 	{
 		Pointable::create([
 			"pointable_id" => $this->id,
-			"pointable_id" => get_class($this),
+			"pointable_type" => get_class($this),
 			"location" => $point
 		]);
 	}

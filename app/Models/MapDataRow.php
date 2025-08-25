@@ -10,4 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 class MapDataRow extends Model
 {
   use HasLocation, HasArea, HasUuids;
+
+	protected $fillable = ['data'];
 }

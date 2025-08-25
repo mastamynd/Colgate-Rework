@@ -1,12 +1,14 @@
 <script setup>
 import { useGeolocation } from '@vueuse/core'
-import { GoogleMap, Marker } from 'vue3-google-map'
+import { GoogleMap, Marker, Polygon, InfoWindow } from 'vue3-google-map'
 import DrillDown from './DrillDown.vue'
 import { ref, watchEffect, computed } from 'vue'
+import { Deferred } from '@inertiajs/vue3'
+
 import { useAppearance } from '@/composables/useAppearance'
 // import { fetchBoundaries } from '@/composables/useFetchBoundaries';
 
-const { api_key, counties, constituencies, wards, boundaries } = defineProps({
+const { api_key, counties, constituencies, wards, boundaries, customInfoWindowHtml, salesPersonnel } = defineProps({
 	api_key: {
 		type: String,
 		default: ''
@@ -30,6 +32,16 @@ const { api_key, counties, constituencies, wards, boundaries } = defineProps({
 	boundaries: {
 		type: Promise,
 		default: () => Promise.resolve([])
+	},
+	customInfoWindowHtml: {
+		type: String,
+		default: '',
+		description: 'Custom HTML content to display in the polygon info window. If not provided, default content will be shown.'
+	},
+	salesPersonnel: {
+		type: Array,
+		default: () => [],
+		description: 'Array of sales personnel objects with properties like name, color, etc.'
 	}
 });
 
@@ -45,8 +57,48 @@ const zoom = ref(15);
 const mapTypeId = ref('roadmap');
 const showHeatMap = ref(false);
 const showMarkers = ref(true);
-const showBoundaries = ref(true);
-const boundariesList = ref([]);
+const drillDownData = ref({
+	boundariesVisible: true,
+	boundariesCount: 0,
+	county: null,
+	constituency: null,
+	ward: null
+	});
+
+// State for managing which infowindow is open
+const openInfoWindow = ref(null);
+
+// Computed property for info window HTML content
+const infoWindowHtml = computed(() => {
+	return customInfoWindowHtml || `
+		<div class="space-y-2">
+			<div class="flex items-center justify-between">
+				<span class="text-gray-500">Population:</span>
+				<span class="font-medium">~2.4M</span>
+			</div>
+			<div class="flex items-center justify-between">
+				<span class="text-gray-500">Area:</span>
+				<span class="font-medium">696.1 km²</span>
+			</div>
+			<div class="flex items-center justify-between">
+				<span class="text-gray-500">Density:</span>
+				<span class="font-medium">3,447/km²</span>
+			</div>
+		</div>
+	`;
+});
+
+// Function to handle polygon click
+const handlePolygonClick = (boundaryId) => {
+	console.log('Polygon clicked:', boundaryId);
+	openInfoWindow.value = openInfoWindow.value === boundaryId ? null : boundaryId;
+	console.log('Info window state:', openInfoWindow.value);
+};
+
+// Function to close infowindow
+const closeInfoWindow = () => {
+	openInfoWindow.value = null;
+};
 
 // Dark theme map styles with dark background and red hue
 const darkMapStyles = [
@@ -124,10 +176,15 @@ const toggleMapType = () => {
 	mapTypeId.value = mapTypeId.value === 'roadmap' ? 'satellite' : 'roadmap';
 };
 
-const processedBoundaries = computed(() => {
+const processedBoundaries = (boundaries) => {
 	if (!boundaries || !Array.isArray(boundaries)) return [];
+
+	drillDownData.value.boundariesCount = boundaries.length;
+
+	const mapBounds = new mapRef.value.api.LatLngBounds();
+	let hasValidBounds = false;
 	
-	return boundaries.map(boundary => {
+	const processedBoundaries = boundaries.map(boundary => {
 		let geometry = JSON.parse(boundary.geometry);
 		let path = [];
 		
@@ -140,6 +197,10 @@ const processedBoundaries = computed(() => {
 				// For Polygon, coordinates is an array of linear rings
 				// First ring is exterior, subsequent rings are holes
 				const exteriorRing = featureGeometry.coordinates[0];
+				if (exteriorRing && exteriorRing.length > 0 && !isNaN(exteriorRing[0][1]) && !isNaN(exteriorRing[0][0])) {
+					mapBounds.extend(new mapRef.value.api.LatLng(exteriorRing[0][1], exteriorRing[0][0]));
+					hasValidBounds = true;
+				}
 				path = exteriorRing.map(coord => ({
 					lat: coord[1], // latitude is second element
 					lng: coord[0]  // longitude is first element
@@ -150,6 +211,10 @@ const processedBoundaries = computed(() => {
 				if (featureGeometry.coordinates.length > 0) {
 					const firstPolygon = featureGeometry.coordinates[0];
 					const exteriorRing = firstPolygon[0];
+					if (exteriorRing && exteriorRing.length > 0 && !isNaN(exteriorRing[0][1]) && !isNaN(exteriorRing[0][0])) {
+						mapBounds.extend(new mapRef.value.api.LatLng(exteriorRing[0][1], exteriorRing[0][0]));
+						hasValidBounds = true;
+					}
 					path = exteriorRing.map(coord => ({
 						lat: coord[1], // latitude is second element
 						lng: coord[0]  // longitude is first element
@@ -160,6 +225,10 @@ const processedBoundaries = computed(() => {
 		// Handle direct Polygon/MultiPolygon format (fallback)
 		else if (geometry.type === 'Polygon') {
 			const exteriorRing = geometry.coordinates[0];
+			if (exteriorRing && exteriorRing.length > 0 && !isNaN(exteriorRing[0][1]) && !isNaN(exteriorRing[0][0])) {
+				mapBounds.extend(new mapRef.value.api.LatLng(exteriorRing[0][1], exteriorRing[0][0]));
+				hasValidBounds = true;
+			}
 			path = exteriorRing.map(coord => ({
 				lat: coord[1], // latitude is second element
 				lng: coord[0]  // longitude is first element
@@ -168,6 +237,10 @@ const processedBoundaries = computed(() => {
 			if (geometry.coordinates.length > 0) {
 				const firstPolygon = geometry.coordinates[0];
 				const exteriorRing = firstPolygon[0];
+				if (exteriorRing && exteriorRing.length > 0 && !isNaN(exteriorRing[0][1]) && !isNaN(exteriorRing[0][0])) {
+					mapBounds.extend(new mapRef.value.api.LatLng(exteriorRing[0][1], exteriorRing[0][0]));
+					hasValidBounds = true;
+				}
 				path = exteriorRing.map(coord => ({
 					lat: coord[1], // latitude is second element
 					lng: coord[0]  // longitude is first element
@@ -175,12 +248,26 @@ const processedBoundaries = computed(() => {
 			}
 		}
 
-		return {
+		const processed = {
 			id: boundary.id,
 			name: boundary.name,
+			type: boundary.type, // Add the boundary type
 			path: path
 		};
+		
+		return processed;
 	});
+
+	// Only fit bounds if we have valid coordinates
+	if (hasValidBounds && !mapBounds.isEmpty()) {
+		mapRef.value.map.fitBounds(mapBounds);
+	}
+
+	return processedBoundaries;
+}
+
+const shapesLoaded = computed(() => {
+	return boundaries.value && boundaries.value.length > 0;
 });
 
 const toggleHeatMap = () => {
@@ -190,7 +277,13 @@ const toggleMarkers = () => {
 	showMarkers.value = !showMarkers.value;
 };
 const toggleBoundaries = () => {
-	showBoundaries.value = !showBoundaries.value;
+	drillDownData.value.boundariesVisible = !drillDownData.value.boundariesVisible;
+};
+
+const showPersonnelCard = ref(false);
+
+const togglePersonnelCard = () => {
+	showPersonnelCard.value = !showPersonnelCard.value;
 };
 
 // Computed properties for control button styling based on theme
@@ -209,21 +302,73 @@ const getControlActiveClasses = computed(() => {
 		? 'bg-gray-700 text-red-400'
 		: 'bg-red-700 text-white';
 });
+
+const getOps = (boundary, openInfoWindow, hover=false) => {
+	return hover ? {
+		paths: boundary.path,
+		strokeColor: 'hsl(0, 85%, 60%)', // Bright red stroke on hover
+		strokeOpacity: 0.9,
+		strokeWeight: 3,
+		fillColor: 'hsl(0, 75%, 55%)', // Vibrant red fill on hover
+		fillOpacity: 0.5,
+		clickable: true,
+		zIndex: openInfoWindow === boundary.id ? 1000 : 100,
+	} : {
+		paths: boundary.path,
+		strokeColor: 'hsl(0, 70%, 45%)', // Darker red stroke for normal state
+		strokeOpacity: 0.7,
+		strokeWeight: 2,
+		fillColor: 'hsl(0, 60%, 50%)', // Muted red fill for normal state
+		fillOpacity: 0.25,
+		clickable: true,
+		zIndex: openInfoWindow === boundary.id ? 1000 : 1,
+	}
+}
+
+const mapRef = ref(null);
 </script>
 
 <template>
 	<div class="relative" :style="{ width: '100%', height: mapHeight }">
-		<GoogleMap :apiKey="api_key" :center="userLocation" :zoom="zoom" :mapTypeId="mapTypeId" :disableDefaultUi="true"
-			:styles="mapTypeId === 'roadmap' ? currentMapStyles : null" :style="{ width: '100%', height: mapHeight }">
-			{{ JSON.stringify(processedBoundaries) }}
-							<Polygon v-for="boundary in processedBoundaries" :key="boundary.id" :options="{
-					paths: boundary.path,
-					strokeColor: 'hsl(220, 83%, 53%)',
-					strokeOpacity: 0.8,
-					strokeWeight: 2,
-					fillColor: 'hsl(220, 83%, 53%)',
-					fillOpacity: 0.35,
-				}" />
+		<GoogleMap ref="mapRef" :apiKey="api_key" :zoom="zoom" :mapTypeId="mapTypeId" :disableDefaultUi="true" :validated-boundaries="processedBoundaries(boundaries)"
+			:styles="mapTypeId === 'roadmap' ? currentMapStyles : null" :style="{ width: '100%', height: mapHeight }" @click="closeInfoWindow">
+			<template v-if="drillDownData.boundariesVisible">
+				<Deferred :data="['boundaries']">
+					<template #fallback>
+							<div>Loading...</div>
+					</template>
+					<Polygon v-for="boundary in processedBoundaries(boundaries)" :key="boundary.id" :options="getOps(boundary, openInfoWindow, false)" @click="handlePolygonClick(boundary.id)" @mouseover="getOps(boundary, openInfoWindow, true)" @mouseleave="getOps(boundary, openInfoWindow, false)">
+						<InfoWindow v-if="openInfoWindow === boundary.id" :options="{
+							position: { 
+								lat: boundary.path.reduce((sum, point) => sum + point.lat, 0) / boundary.path.length,
+								lng: boundary.path.reduce((sum, point) => sum + point.lng, 0) / boundary.path.length
+							}
+						}">
+							<div class="bg-white rounded-lg shadow-xl border border-gray-200 p-4 min-w-[280px] max-w-[320px]">
+								<!-- Header Section -->
+								<div class="border-b border-gray-200 pb-3 mb-3">
+									<h3 class="text-lg font-semibold text-gray-800 mb-1">{{ boundary.name }}</h3>
+									<div class="flex items-center">
+										<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+											{{ boundary.type?.charAt(0).toUpperCase() + boundary.type?.slice(1) }}
+										</span>
+									</div>
+								</div>
+								
+								<!-- Custom HTML Content Section -->
+								<div v-if="infoWindowHtml" class="text-sm text-gray-600" v-html="infoWindowHtml"></div>
+								
+								<!-- Footer with close button -->
+								<div class="mt-3 pt-3 border-t border-gray-200">
+									<button @click="closeInfoWindow" class="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+										Click to close
+									</button>
+								</div>
+							</div>
+						</InfoWindow>
+					</Polygon>
+				</Deferred>
+			</template>
 		</GoogleMap>
 		<div class="absolute right-2 top-1/2 -translate-y-1/2 space-y-2">
 			<button @click="toggleMapType"
@@ -262,7 +407,7 @@ const getControlActiveClasses = computed(() => {
 				</svg>
 			</button>
 			<button @click="toggleBoundaries"
-				:class="[getControlBaseClasses, showBoundaries ? getControlActiveClasses : '']">
+				:class="[getControlBaseClasses, drillDownData.boundariesVisible ? getControlActiveClasses : '']">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
 					viewBox="0 0 512 512"><!-- Icon from Famicons by Family - https://github.com/familyjs/famicons/blob/main/LICENSE -->
 					<path fill="currentColor"
@@ -270,9 +415,70 @@ const getControlActiveClasses = computed(() => {
 					<path fill="currentColor" d="m480 256l-75.53-33.53L256.1 290.6l-148.77-68.17L32 256l224 102z" />
 				</svg>
 			</button>
+			<button @click="togglePersonnelCard"
+				:class="[getControlBaseClasses, showPersonnelCard ? getControlActiveClasses : '']">
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><!-- Icon from Carbon by IBM - undefined --><path fill="currentColor" d="M30 6V4h-3V2h-2v2h-1c-1.103 0-2 .898-2 2v2c0 1.103.897 2 2 2h4v2h-6v2h3v2h2v-2h1c1.103 0 2-.897 2-2v-2c0-1.102-.897-2-2-2h-4V6zm-6 14v2h2.586L23 25.586l-2.292-2.293a1 1 0 0 0-.706-.293H20a1 1 0 0 0-.706.293L14 28.586L15.414 30l4.587-4.586l2.292 2.293a1 1 0 0 0 1.414 0L28 23.414V26h2v-6zM4 30H2v-5c0-3.86 3.14-7 7-7h6c1.989 0 3.89.85 5.217 2.333l-1.49 1.334A5 5 0 0 0 15 20H9c-2.757 0-5 2.243-5 5zm8-14a7 7 0 1 0 0-14a7 7 0 0 0 0 14m0-12a5 5 0 1 1 0 10a5 5 0 0 1 0-10"/></svg>
+			</button>
 		</div>
-		{{ JSON.stringify(boundariesList) }}
-		<DrillDown class="absolute top-10 left-1/2 -translate-x-1/2 z-10" v-model="boundariesList" :counties="counties" :constituencies="constituencies" :wards="wards" />
+		<DrillDown class="absolute top-10 left-1/2 -translate-x-1/2 z-10" v-model="drillDownData" :counties="counties" :constituencies="constituencies" :wards="wards" />
+		
+		<!-- Personnel Card -->
+		<div v-if="showPersonnelCard" class="absolute left-16 top-24 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 min-w-[300px] max-w-[400px] max-h-[500px] overflow-y-auto">
+			<!-- Header -->
+			<div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 dark:border-gray-600">
+				<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 flex">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><!-- Icon from Carbon by IBM - undefined --><path fill="currentColor" d="M30 6V4h-3V2h-2v2h-1c-1.103 0-2 .898-2 2v2c0 1.103.897 2 2 2h4v2h-6v2h3v2h2v-2h1c1.103 0 2-.897 2-2v-2c0-1.102-.897-2-2-2h-4V6zm-6 14v2h2.586L23 25.586l-2.292-2.293a1 1 0 0 0-.706-.293H20a1 1 0 0 0-.706.293L14 28.586L15.414 30l4.587-4.586l2.292 2.293a1 1 0 0 0 1.414 0L28 23.414V26h2v-6zM4 30H2v-5c0-3.86 3.14-7 7-7h6c1.989 0 3.89.85 5.217 2.333l-1.49 1.334A5 5 0 0 0 15 20H9c-2.757 0-5 2.243-5 5zm8-14a7 7 0 1 0 0-14a7 7 0 0 0 0 14m0-12a5 5 0 1 1 0 10a5 5 0 0 1 0-10"/></svg>
+					<span class="ml-2">Sales Personnel</span>
+				</h3>
+				<button @click="togglePersonnelCard" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="18" y1="6" x2="6" y2="18"></line>
+						<line x1="6" y1="6" x2="18" y2="18"></line>
+					</svg>
+				</button>
+			</div>
+			
+			<!-- Personnel List -->
+			<div v-if="salesPersonnel && salesPersonnel.length > 0" class="space-y-3">
+				<div v-for="person in salesPersonnel" :key="person.id || person.name" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+					<!-- Profile Photo -->
+					<div class="flex-shrink-0">
+						<img :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&color=${person.color || '7F9CF5'}&background=EBF4FF`" 
+							 :alt="person.name"
+							 class="w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-600"
+							 @error="$event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&color=7F9CF5&background=EBF4FF`">
+					</div>
+					
+					<!-- Personnel Info -->
+					<div class="flex-1 min-w-0">
+						<p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ person.name }}</p>
+						<p v-if="person.role" class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ person.role }}</p>
+						<p v-if="person.code" class="text-xs text-gray-500 dark:text-gray-400 truncate">Code: {{ person.code }}</p>
+					</div>
+					
+					<!-- Status Indicator -->
+					<div v-if="person.is_active !== undefined" class="flex-shrink-0">
+						<div :class="[
+							'w-2 h-2 rounded-full',
+							person.is_active ? 'bg-green-500' : 'bg-red-500'
+						]"></div>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Empty State -->
+			<div v-else class="text-center py-8">
+				<div class="flex justify-center text-gray-400 dark:text-gray-500 mb-2">
+					<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+						<circle cx="9" cy="7" r="4"></circle>
+						<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+						<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+					</svg>
+				</div>
+				<p class="text-gray-500 dark:text-gray-400 text-sm text-center">No sales personnel available</p>
+			</div>
+		</div>
 	</div>
 </template>
 

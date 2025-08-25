@@ -238,7 +238,12 @@ const openUploadDialog = (mapData: MapData) => {
 	showUploadDialog.value = true;
 };
 
-const handleFileUpload = async (event: Event) => {
+const uploadForm = useForm({
+	excel_file: null as File | null,
+	map_data_id: ''
+});
+
+const handleFileUpload = (event: Event) => {
 	const target = event.target as HTMLInputElement;
 	const file = target.files?.[0];
 	
@@ -256,41 +261,31 @@ const handleFileUpload = async (event: Event) => {
 		return;
 	}
 	
-	isUploading.value = true;
+	// Set form data
+	uploadForm.excel_file = file;
+	uploadForm.map_data_id = selectedMapDataForUpload.value.id;
 	
-	// Create FormData for file upload
-	const formData = new FormData();
-	formData.append('excel_file', file);
-	formData.append('map_data_id', selectedMapDataForUpload.value.id);
-	
-	try {
-		const response = await fetch(route('map-data.upload-rows'), {
-			method: 'POST',
-			body: formData,
-			headers: {
-				'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+	// Submit the form
+	uploadForm.post(route('map-data.upload-rows'), {
+		onSuccess: (page) => {
+			const result = page.props.flash?.success;
+			if (result) {
+				alert(`Successfully uploaded rows from Excel file.`);
 			}
-		});
-		
-		if (response.ok) {
-			const result = await response.json();
-			alert(`Successfully uploaded ${result.rows_created} rows from Excel file.`);
 			closeUploadDialog();
-			// Refresh the page to show updated data
-			window.location.reload();
-		} else {
-			const error = await response.json();
-			alert(`Upload failed: ${error.message || 'Unknown error'}`);
+			// Reset file input
+			target.value = '';
+		},
+		onError: (errors) => {
+			const errorMessage = Object.values(errors)[0] || 'Upload failed. Please try again.';
+			alert(`Upload failed: ${errorMessage}`);
+			// Reset file input
+			target.value = '';
+		},
+		onFinish: () => {
+			uploadForm.reset();
 		}
-	} catch (error) {
-		console.error('Upload error:', error);
-		alert('Upload failed. Please try again.');
-	} finally {
-		isUploading.value = false;
-	}
-	
-	// Reset file input
-	target.value = '';
+	});
 };
 </script>
 

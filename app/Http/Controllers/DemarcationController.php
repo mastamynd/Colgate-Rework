@@ -73,12 +73,12 @@ class DemarcationController extends Controller
 	public function fetchGeometry(Request $request)
 	{
 		if ($request->boundary_type == 'county' || $request->boundary_type == 'constituency') {	
-			$demarcations = Demarcation::select('id', 'name', 'geometry')->where('parent_type', $request->boundary_type)->where('parent_code', $request->boundary_id)->get();
+			$demarcations = Demarcation::select('id', 'name', 'type', 'geometry')->where('parent_type', $request->boundary_type)->where('parent_code', $request->boundary_id)->get();
 		}
 		else if ($request->boundary_type == 'ward') {
-			$demarcations = Demarcation::select('id', 'name', 'geometry')->where('type', 'ward')->where('code', $request->boundary_id)->get();
+			$demarcations = Demarcation::select('id', 'name', 'type', 'geometry')->where('type', 'ward')->where('code', $request->boundary_id)->get();
 		} else {
-			$demarcations = Demarcation::select('id', 'name', 'geometry')->where('parent_type', 'COUNTRY')->get();
+			$demarcations = Demarcation::select('id', 'name', 'type', 'geometry')->where('parent_type', 'COUNTRY')->get();
 		}
 
 		return $demarcations;
