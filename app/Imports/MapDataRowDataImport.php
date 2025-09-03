@@ -4,109 +4,59 @@ namespace App\Imports;
 
 use App\Models\MapData;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Concerns\Importable;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 
-class MapDataRowDataImport implements ToCollection, WithValidation
+class MapDataRowDataImport implements ToCollection, WithHeadingRow, WithChunkReading
 {
 	use Importable;
 
-	protected $mapData;
 	protected $rowsCreated = 0;
 	protected $errors = [];
+	protected $hasLocation = false;
 
-	public function __construct(MapData $mapData)
+	public function __construct(public MapData $mapData, public string $tableName, public array $columns)
 	{
+		// dd($this->columns);
 		$this->mapData = $mapData;
-	}
+		unset($this->columns['id']);
 
-	/**
-	 * @param Collection $rows
-	 */
-	public function collection(Collection $rows)
-	{
-		// Delete existing rows for this map data
-		$this->mapData->mapDataRows()->delete();
-
-		// Process each data row
-		foreach ($rows as $index => $row) {
-			try {
-				// Convert row to array
-				$rowData = $row->toArray();
-
-				// Create the map data row
-				$mapDataRow = $this->mapData->mapDataRows()->create([
-					'data' => $rowData
-				]);
-
-				// Create location if latitude and longitude are provided
-				$latitude = $rowData['latitude'] ?? null;
-				$longitude = $rowData['longitude'] ?? null;
-
-				if ($latitude && $longitude && is_numeric($latitude) && is_numeric($longitude)) {
-					try {
-						// Create a Point object using the spatial package
-						// Note: Point constructor expects (longitude, latitude, srid)
-						$point = new Point((float)$longitude, (float)$latitude, 4326);
-						$mapDataRow->addLocation($point);
-					} catch (\Exception $e) {
-						// Log the error but continue processing other rows
-						Log::warning("Failed to create location for row " . ($index + 2) . ": " . $e->getMessage());
-						$this->errors[] = "Row " . ($index + 2) . ": Failed to create location - " . $e->getMessage();
-					}
-				}
-
-				$this->rowsCreated++;
-			} catch (\Exception $e) {
-				Log::error("Failed to process row " . ($index + 2) . ": " . $e->getMessage());
-				$this->errors[] = "Row " . ($index + 2) . ": " . $e->getMessage();
-			}
+		if(in_array('latitude', $this->columns) && in_array('longitude', $this->columns)) {
+			$this->hasLocation = true;
+		}
+		if(in_array('lat', $this->columns) && in_array('lng', $this->columns)) {
+			$this->hasLocation = true;
 		}
 	}
 
-	/**
-	 * Define validation rules for the import
-	 */
-	public function rules(): array
+	public function collection(Collection $rows)
 	{
-		return [
-			'latitude' => ['required', 'numeric', 'between:-90,90'],
-			'longitude' => ['required', 'numeric', 'between:-180,180'],
-		];
+		foreach ($rows as $row) {
+			$insertData = [];
+
+			foreach ($this->columns as $key) {
+				if($key === 'id') continue;
+
+				if($key === 'map_data_id') {
+					$insertData[$key] = $this->mapData->id;
+					continue;
+				}
+
+				$insertData[$key] = $row[$key] ?? null;
+			}
+
+			DB::table($this->tableName)->insert($insertData);
+		}
 	}
 
-	/**
-	 * Custom validation messages
-	 */
-	public function customValidationMessages(): array
+	public function chunkSize	(): int
 	{
-		return [
-			'latitude.required' => 'Latitude column is required',
-			'latitude.numeric' => 'Latitude must be a valid number',
-			'latitude.between' => 'Latitude must be between -90 and 90',
-			'longitude.required' => 'Longitude column is required',
-			'longitude.numeric' => 'Longitude must be a valid number',
-			'longitude.between' => 'Longitude must be between -180 and 180',
-		];
-	}
-
-	/**
-	 * Get the number of rows created
-	 */
-	public function getRowsCreated(): int
-	{
-		return $this->rowsCreated;
-	}
-
-	/**
-	 * Get any errors that occurred during import
-	 */
-	public function getErrors(): array
-	{
-		return $this->errors;
+		return 1000;
 	}
 }

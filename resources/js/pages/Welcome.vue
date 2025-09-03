@@ -22,6 +22,10 @@ const {api_key, counties, constituencies, wards, boundaries} = defineProps({
 	boundaries: {
 		type: Promise,
 		default: () => Promise.resolve([])
+	},
+	available_map_data: {
+		type: Array,
+		default: () => []
 	}
 });
 
@@ -92,7 +96,7 @@ onMounted(async () => {
 		<div
 			class="duration-750 starting:opacity-0 flex w-full items-center justify-center opacity-100 transition-opacity lg:grow">
 			<main class="flex w-full flex-col-reverse overflow-hidden rounded-lg lg:flex-row">
-				<MainMap :api_key="api_key" :mapHeight="mapHeight" :counties="counties" :constituencies="constituencies" :wards="wards" :boundaries="boundaries" />
+				<MainMap :api_key="api_key" :mapHeight="mapHeight" :counties="counties" :constituencies="constituencies" :wards="wards" :boundaries="boundaries" :available_map_data="available_map_data" />
 			</main>
 		</div>
 		<div class="h-14.5 hidden lg:block"></div>

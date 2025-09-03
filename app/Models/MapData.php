@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
-use App\Trait\HasArea;
-use App\Trait\HasLocation;
+use App\Traits\HasArea;
+use App\Traits\HasLocation;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class MapData extends Model
 {
-  use HasUuids;
+  use HasFactory, HasUuids;
 
   /**
    * The attributes that are mass assignable.
@@ -20,6 +23,8 @@ class MapData extends Model
     'type',
     'user_id',
     'data',
+    'data_table',
+    'data_columns',
     'is_active'
   ];
 
@@ -28,7 +33,10 @@ class MapData extends Model
    */
   protected $casts = [
     'is_active' => 'boolean',
+    'data_columns' => 'array',
   ];
+
+	protected $appends = ['dynamic_row_count'];
 
   /**
    * Get the map data rows for the map data.
@@ -92,5 +100,60 @@ class MapData extends Model
   public function isInactive(): bool
   {
     return !$this->is_active;
+  }
+
+  /**
+   * Get data from the dynamic table
+   */
+  public function getDynamicData()
+  {
+    if (!$this->data_table || !Schema::hasTable($this->data_table)) {
+      return collect();
+    }
+
+    return DB::table($this->data_table)
+      ->where('map_data_id', $this->id)
+      ->get();
+  }
+
+  /**
+   * Get the count of rows in the dynamic table
+   */
+  public function getDynamicRowCountAttribute(): int
+  {
+    if (!$this->data_table || !Schema::hasTable($this->data_table)) {
+      return 0;
+    }
+
+    return DB::table($this->data_table)
+      ->where('map_data_id', $this->id)
+      ->count();
+  }
+
+  /**
+   * Check if this MapData has a dynamic table
+   */
+  public function hasDynamicTable(): bool
+  {
+    return !empty($this->data_table) && Schema::hasTable($this->data_table);
+  }
+
+  /**
+   * Delete the dynamic table and its data
+   */
+  public function deleteDynamicTable(): void
+  {
+    if ($this->data_table && Schema::hasTable($this->data_table)) {
+     Schema::drop($this->data_table);
+    }
+  }
+
+  /**
+   * Override delete to clean up dynamic table
+   */
+  public function delete()
+  {
+    $this->deleteDynamicTable();
+    return parent::delete();
   }
 }

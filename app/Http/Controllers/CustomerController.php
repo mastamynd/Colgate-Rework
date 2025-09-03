@@ -16,7 +16,13 @@ class CustomerController extends Controller
 	 */
 	public function index(Request $request)
 	{
-		$query = Customer::with(['salesPerson', 'route', 'county', 'constituency', 'ward']);
+		$query = Customer::with([
+			'salesPerson', 
+			'route', 
+			'county:id,name,code,type,parent_code',
+			'constituency:id,name,code,type,parent_code', 
+			'ward:id,name,code,type,parent_code'
+		]);
 
 		// Apply filters
 		if ($request->filled('sales_person_id')) {

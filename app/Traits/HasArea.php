@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Trait;
+namespace App\Traits;
 
 use App\Models\Areable;
 use MatanYadaev\EloquentSpatial\Objects\Geometry;

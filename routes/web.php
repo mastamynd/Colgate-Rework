@@ -39,9 +39,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 	Route::patch('map-data/{map_data}/deactivate', [MapDataController::class, 'deactivate'])->name('map-data.deactivate');
 	Route::patch('map-data/{map_data}/activate', [MapDataController::class, 'activate'])->name('map-data.activate');
 	Route::post('map-data/upload-rows', [MapDataController::class, 'uploadRows'])->name('map-data.upload-rows');
+	Route::get('map-data/{map_data}/data', [MapDataController::class, 'getData'])->name('map-data.data');
 });
 
 Route::get('demarcations/fetch-geometry', [DemarcationController::class, 'fetchGeometry'])->name('demarcations.fetch-geometry');
+Route::get('demarcations/demographics-heat-map', [DemarcationController::class, 'getDemographicsHeatMap'])->name('demarcations.demographics-heat-map');
+Route::get('demarcations/customers', [DemarcationController::class, 'getCustomers'])->name('demarcations.customer');
+Route::get('demarcations/map-data-points', [DemarcationController::class, 'getMapDataPoints'])->name('demarcations.map-data-points');
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

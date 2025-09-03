@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sales_people', function (Blueprint $table) {
-            $table->string('code')->unique()->after('name');
-            $table->boolean('is_active')->default(true)->after('type');
+            if (!Schema::hasColumn('sales_people', 'code')) {
+                $table->string('code')->unique()->after('name');
+            }
+            if (!Schema::hasColumn('sales_people', 'is_active')) {
+                $table->boolean('is_active')->default(true)->after('type');
+            }
         });
     }
 
@@ -23,7 +27,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sales_people', function (Blueprint $table) {
-            $table->dropColumn(['code', 'is_active']);
+            if (Schema::hasColumn('sales_people', 'code')) {
+                $table->dropColumn('code');
+            }
+            if (Schema::hasColumn('sales_people', 'is_active')) {
+                $table->dropColumn('is_active');
+            }
         });
     }
 };

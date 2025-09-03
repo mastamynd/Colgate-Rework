@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use MatanYadaev\EloquentSpatial\Objects\Geometry;
 use Illuminate\Database\Eloquent\Model;
+use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
 class Boundary extends Model
 {
+	use HasSpatial;
+
 	protected $fillable = [
 		'name',
 		'code',
@@ -16,7 +20,7 @@ class Boundary extends Model
 	];
 
 	protected $casts = [
-		'geometry' => 'array',
+		'geometry' => Geometry::class,
 	];
 
 	/**

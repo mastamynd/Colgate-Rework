@@ -19,7 +19,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(["areable_id", "areable_type"]);
-            $table->spatialIndex('area');
+            
+            // Only create spatial index if not using SQLite
+            if (config('database.default') !== 'sqlite') {
+                $table->spatialIndex('area');
+            }
         });
     }
 

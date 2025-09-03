@@ -268,10 +268,6 @@ const handleFileUpload = (event: Event) => {
 	// Submit the form
 	uploadForm.post(route('map-data.upload-rows'), {
 		onSuccess: (page) => {
-			const result = page.props.flash?.success;
-			if (result) {
-				alert(`Successfully uploaded rows from Excel file.`);
-			}
 			closeUploadDialog();
 			// Reset file input
 			target.value = '';
@@ -408,7 +404,7 @@ const handleFileUpload = (event: Event) => {
 								</td>
 								<td class="px-6 py-4">
 									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800 border border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800">
-										{{ mapDataItem.map_data_rows_count || 0 }} rows
+										{{ mapDataItem.dynamic_row_count.toLocaleString() || 0 }} rows
 									</span>
 								</td>
 								<td class="px-6 py-4">

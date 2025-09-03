@@ -19,7 +19,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(["pointable_id", "pointable_type"]);
-            $table->spatialIndex('location');
+            
+            // Only create spatial index if not using SQLite
+            if (config('database.default') !== 'sqlite') {
+                $table->spatialIndex('location');
+            }
         });
     }
 

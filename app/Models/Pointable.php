@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Trait\HasLocation;
+use App\Traits\HasLocation;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use MatanYadaev\EloquentSpatial\Objects\Point;
@@ -14,6 +14,6 @@ class Pointable extends Model
     protected $guarded = ["id"];
 
     protected $casts = [
-        'location' => Point::class,
+      'location' => Point::class,
     ];
 }
