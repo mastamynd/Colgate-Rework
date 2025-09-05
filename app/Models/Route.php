@@ -15,7 +15,8 @@ class Route extends Model
         'name',
         'line',
         'description',
-        'is_active'
+        'is_active',
+        'color'
     ];
 
     protected $casts = [

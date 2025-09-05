@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlusIcon, PencilIcon, TrashIcon, ShieldXIcon, UserXIcon, UserCheckIcon } from 'lucide-vue-next';
+import ColorPicker from '@/components/custom/ColorPicker.vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -40,7 +41,8 @@ const form = useForm({
 	code: '',
 	email: '',
 	phone: '',
-	type: ''
+	type: '',
+	color: '#3B82F6'
 });
 
 const closeDialog = () => {
@@ -57,6 +59,7 @@ const editPerson = (person: SalesPerson) => {
 	form.email = person.email || '';
 	form.phone = person.phone || '';
 	form.type = person.type || '';
+	form.color = person.color || '#3B82F6';
 	showAddDialog.value = true;
 };
 
@@ -148,13 +151,14 @@ const deletePerson = async (person: SalesPerson) => {
 								<th scope="col" class="px-6 py-3">Email</th>
 								<th scope="col" class="px-6 py-3">Phone</th>
 								<th scope="col" class="px-6 py-3">Type</th>
+								<th scope="col" class="px-6 py-3">Color</th>
 								<th scope="col" class="px-6 py-3">Status</th>
 								<th scope="col" class="px-6 py-3">Actions</th>
 							</tr>
 						</thead>
 						<tbody>
 							<tr v-if="!salesPersonnel.data || salesPersonnel.data.length === 0" class="border-b">
-								<td colspan="7" class="px-6 py-8">
+								<td colspan="8" class="px-6 py-8">
 									<div class="flex flex-col items-center justify-center text-center">
 										<ShieldXIcon class="h-12 w-12 text-muted-foreground/50" />
 										<h3 class="mt-4 text-sm font-medium text-muted-foreground">No sales personnel found</h3>
@@ -168,6 +172,15 @@ const deletePerson = async (person: SalesPerson) => {
 								<td class="px-6 py-4">{{ person.email || '-' }}</td>
 								<td class="px-6 py-4">{{ person.phone || '-' }}</td>
 								<td class="px-6 py-4">{{ person.type || '-' }}</td>
+								<td class="px-6 py-4">
+									<div class="flex items-center gap-2">
+										<div 
+											class="w-4 h-4 rounded border border-gray-300"
+											:style="{ backgroundColor: person.color || '#3B82F6' }"
+										></div>
+										<span class="text-sm text-muted-foreground">{{ person.color || '#3B82F6' }}</span>
+									</div>
+								</td>
 								<td class="px-6 py-4">
 									<span 
 										class="inline-flex items-center px-2 py-1 rounded-full text-xs border"
@@ -267,6 +280,13 @@ const deletePerson = async (person: SalesPerson) => {
 								<option value="Sales Representative">Sales Representative</option>
 								<option value="Distributor">Distributor</option>
 							</select>
+						</div>
+						<div class="space-y-2">
+							<Label for="color">Color</Label>
+							<ColorPicker 
+								v-model="form.color"
+								:disabled="form.processing"
+							/>
 						</div>
 						<DialogFooter>
 							<Button type="button" variant="ghost" @click="closeDialog" :disabled="form.processing">

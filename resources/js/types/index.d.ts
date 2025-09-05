@@ -60,6 +60,7 @@ export interface SalesPerson {
     email?: string;
     phone?: string;
     type?: 'Sales Representative' | 'Distributor';
+    color?: string;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -71,17 +72,41 @@ export interface Customer {
     phone?: string;
     email?: string;
     address?: string;
+    average_ims?: number;
     county_id?: number;
     constituency_id?: number;
     ward_id?: number;
     sales_person_id?: string;
     route_id?: string;
+    customer_kd_code?: string;
+    re_ref?: string;
     is_active: boolean;
     sales_person?: SalesPerson;
     route?: Route;
     county?: Boundary;
     constituency?: Boundary;
     ward?: Boundary;
+    customer_kd?: CustomerKd;
+    re_reference?: ReReference;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CustomerKd {
+    code: string;
+    name: string;
+    color?: string;
+    customers_count?: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ReReference {
+    id: number;
+    code: string;
+    name: string;
+    color?: string;
+    is_active: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -91,6 +116,7 @@ export interface Route {
     name: string;
     line: string;
     description: string;
+    color?: string;
     is_active: boolean;
     created_at: string;
     updated_at: string;

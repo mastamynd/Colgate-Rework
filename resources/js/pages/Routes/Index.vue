@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/input';
 import { PlusIcon, PencilIcon, TrashIcon, ShieldXIcon, UserXIcon, UserCheckIcon } from 'lucide-vue-next';
+import ColorPicker from '@/components/custom/ColorPicker.vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -38,7 +39,8 @@ const editingRoute = ref<Route | null>(null);
 
 const form = useForm({
 	name: '',
-	description: ''
+	description: '',
+	color: '#F59E0B'
 });
 
 const closeDialog = () => {
@@ -52,6 +54,7 @@ const editRoute = (route: Route) => {
 	editingRoute.value = route;
 	form.name = route.name;
 	form.description = route.description || '';
+	form.color = route.color || '#F59E0B';
 	showAddDialog.value = true;
 };
 
@@ -140,13 +143,14 @@ const deleteRoute = async (route: Route) => {
 							<tr>
 								<th scope="col" class="px-6 py-3">Name</th>
 								<th scope="col" class="px-6 py-3">Description</th>
+								<th scope="col" class="px-6 py-3">Color</th>
 								<th scope="col" class="px-6 py-3">Status</th>
 								<th scope="col" class="px-6 py-3">Actions</th>
 							</tr>
 						</thead>
 						<tbody>
 							<tr v-if="!routes.data || routes.data.length === 0" class="border-b">
-								<td colspan="4" class="px-6 py-8">
+								<td colspan="5" class="px-6 py-8">
 									<div class="flex flex-col items-center justify-center text-center">
 										<ShieldXIcon class="h-12 w-12 text-muted-foreground/50" />
 										<h3 class="mt-4 text-sm font-medium text-muted-foreground">No routes found</h3>
@@ -157,6 +161,15 @@ const deleteRoute = async (route: Route) => {
 							<tr v-for="routeItem in routes.data" :key="routeItem.id" class="border-b hover:bg-muted/50 transition-colors">
 								<td class="px-6 py-4 font-medium">{{ routeItem.name }}</td>
 								<td class="px-6 py-4">{{ routeItem.description || '-' }}</td>
+								<td class="px-6 py-4">
+									<div class="flex items-center gap-2">
+										<div 
+											class="w-4 h-4 rounded border border-gray-300"
+											:style="{ backgroundColor: routeItem.color || '#F59E0B' }"
+										></div>
+										<span class="text-sm text-muted-foreground">{{ routeItem.color || '#F59E0B' }}</span>
+									</div>
+								</td>
 								<td class="px-6 py-4">
 									<span 
 										class="inline-flex items-center px-2 py-1 rounded-full text-xs border"
@@ -224,6 +237,13 @@ const deleteRoute = async (route: Route) => {
 								placeholder="Enter route description" 
 								:disabled="form.processing" 
 								class="min-h-20"
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="color">Color</Label>
+							<ColorPicker 
+								v-model="form.color"
+								:disabled="form.processing"
 							/>
 						</div>
 						<div class="bg-muted/30 border border-border/50 rounded-md p-3">

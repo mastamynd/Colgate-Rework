@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import { type BreadcrumbItem, type Customer, type SalesPerson, type Route, type Boundary } from '@/types';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import axios from 'axios';
 import {
@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/input';
 import { PlusIcon, PencilIcon, TrashIcon, ShieldXIcon, UserXIcon, UserCheckIcon } from 'lucide-vue-next';
 import Dropdown from '@/components/custom/Dropdown.vue';
+import Pagination from '@/components/custom/Pagination.vue';
 
 const props = defineProps({
 	customers: {
@@ -43,6 +44,14 @@ const props = defineProps({
 	},
 	wards: {
 		type: Array as () => Boundary[],
+		default: () => []
+	},
+	customerKds: {
+		type: Array as () => any[],
+		default: () => []
+	},
+	reReferences: {
+		type: Array as () => any[],
 		default: () => []
 	},
 	filters: {
@@ -73,11 +82,14 @@ const form = useForm({
 	phone: '',
 	email: '',
 	address: '',
+	average_ims: '',
 	county_code: '', // This will store the county code
 	constituency_code: '', // This will store the constituency code
 	ward_code: '', // This will store the ward code
 	sales_person_id: '',
-	route_id: ''
+	route_id: '',
+	customer_kd_code: '',
+	re_ref: ''
 });
 
 // Reactive arrays for filtered dropdowns
@@ -97,12 +109,22 @@ const filterForm = useForm({
 	route_id: props.filters.route_id || '',
 	county_id: props.filters.county_id || '',
 	constituency_id: props.filters.constituency_id || '',
-	ward_id: props.filters.ward_id || ''
+	ward_id: props.filters.ward_id || '',
+	per_page: props.filters.per_page || '15'
 });
 
 // Filter boundaries for dropdowns
 const filterConstituencies = ref<Boundary[]>([]);
 const filterWards = ref<Boundary[]>([]);
+
+// Page size options
+const pageSizeOptions = [
+	{ value: '10', label: '10 per page' },
+	{ value: '15', label: '15 per page' },
+	{ value: '25', label: '25 per page' },
+	{ value: '50', label: '50 per page' },
+	{ value: '100', label: '100 per page' }
+];
 
 // Watch for changes in filter county selection
 watch(() => selectedFilterCounty.value, async (newCounty: Boundary | null) => {
@@ -179,6 +201,13 @@ watch(() => selectedFilterRoute.value, (newRoute: Route | null) => {
 	applyFilters();
 });
 
+// Watch for changes in page size
+watch(() => filterForm.per_page, (newValue, oldValue) => {
+	if (newValue !== oldValue) {
+		applyFilters();
+	}
+});
+
 // Apply filters function
 const applyFilters = () => {
 	filterForm.get(route('customers.index'), {
@@ -189,8 +218,7 @@ const applyFilters = () => {
 
 // Clear filters function
 const clearFilters = () => {
-	filterForm.reset();
-	// Clear dropdown selections
+	// Clear dropdown selections first
 	selectedFilterSalesPerson.value = null;
 	selectedFilterRoute.value = null;
 	selectedFilterCounty.value = null;
@@ -199,6 +227,9 @@ const clearFilters = () => {
 	// Clear dependent arrays
 	filterConstituencies.value = [];
 	filterWards.value = [];
+	// Reset form with default values
+	filterForm.reset();
+	filterForm.per_page = '15';
 	filterForm.get(route('customers.index'));
 };
 
@@ -346,8 +377,11 @@ const editCustomer = async (customer: Customer) => {
 	form.phone = customer.phone || '';
 	form.email = customer.email || '';
 	form.address = customer.address || '';
+	form.average_ims = customer.average_ims || '';
 	form.sales_person_id = customer.sales_person_id || '';
 	form.route_id = customer.route_id || '';
+	form.customer_kd_code = customer.customer_kd_code || '';
+	form.re_ref = customer.re_ref || '';
 	
 	// Set dropdown selections for sales person and route
 	if (customer.sales_person_id) {
@@ -431,34 +465,40 @@ const handleSubmit = async () => {
 	}
 };
 
-const deactivateCustomer = async (customer: Customer) => {
+const deactivateCustomer = (customer: Customer) => {
 	if (confirm(`Are you sure you want to deactivate ${customer.name}?`)) {
-		try {
-			await axios.patch(route('customers.deactivate', customer.id));
-			window.location.reload();
-		} catch (error) {
-			console.error('Error deactivating customer:', error);
+		router.patch(route('customers.deactivate', customer.id), {}, {
+			onSuccess: () => {
+				// Data will be automatically refreshed by Inertia
+			},
+			onError: (error) => {
+				console.error('Error deactivating customer:', error);
+			}
+		});
+	}
+};
+
+const activateCustomer = (customer: Customer) => {
+	router.patch(route('customers.activate', customer.id), {}, {
+		onSuccess: () => {
+			// Data will be automatically refreshed by Inertia
+		},
+		onError: (error) => {
+			console.error('Error activating customer:', error);
 		}
-	}
+	});
 };
 
-const activateCustomer = async (customer: Customer) => {
-	try {
-		await axios.patch(route('customers.activate', customer.id));
-		window.location.reload();
-	} catch (error) {
-		console.error('Error activating customer:', error);
-	}
-};
-
-const deleteCustomer = async (customer: Customer) => {
+const deleteCustomer = (customer: Customer) => {
 	if (confirm(`Are you sure you want to permanently delete ${customer.name}? This action cannot be undone.`)) {
-		try {
-			await axios.delete(route('customers.destroy', customer.id));
-			window.location.reload();
-		} catch (error) {
-			console.error('Error deleting customer:', error);
-		}
+		router.delete(route('customers.destroy', customer.id), {
+			onSuccess: () => {
+				// Data will be automatically refreshed by Inertia
+			},
+			onError: (error) => {
+				console.error('Error deleting customer:', error);
+			}
+		});
 	}
 };
 </script>
@@ -479,7 +519,7 @@ const deleteCustomer = async (customer: Customer) => {
 			<!-- Filters Section -->
 			<div class="bg-card rounded-lg border p-4 mb-4">
 				<h3 class="text-sm font-medium mb-3">Filters</h3>
-				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
 					<!-- Search -->
 					<div class="space-y-2">
 						<Label for="search">Search</Label>
@@ -547,6 +587,21 @@ const deleteCustomer = async (customer: Customer) => {
 							:clearable="true"
 						/>
 					</div>
+					
+					<!-- Page Size Filter -->
+					<div class="space-y-2">
+						<Label for="per_page">Per Page</Label>
+						<select 
+							id="per_page"
+							v-model="filterForm.per_page"
+							@change="applyFilters"
+							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							<option v-for="option in pageSizeOptions" :key="option.value" :value="option.value">
+								{{ option.label }}
+							</option>
+						</select>
+					</div>
 				</div>
 				
 				<!-- Filter Actions -->
@@ -572,18 +627,21 @@ const deleteCustomer = async (customer: Customer) => {
 								<th scope="col" class="px-6 py-3">Name</th>
 								<th scope="col" class="px-6 py-3">Phone</th>
 								<th scope="col" class="px-6 py-3">Email</th>
+								<th scope="col" class="px-6 py-3">Average IMS</th>
 								<th scope="col" class="px-6 py-3">Sales Personnel</th>
 								<th scope="col" class="px-6 py-3">Route</th>
 								<th scope="col" class="px-6 py-3">County</th>
 								<th scope="col" class="px-6 py-3">Constituency</th>
 								<th scope="col" class="px-6 py-3">Ward</th>
+								<th scope="col" class="px-6 py-3">Customer KD</th>
+								<th scope="col" class="px-6 py-3">RE Reference</th>
 								<th scope="col" class="px-6 py-3">Status</th>
 								<th scope="col" class="px-6 py-3">Actions</th>
 							</tr>
 						</thead>
 						<tbody>
 							<tr v-if="!customers.data || customers.data.length === 0" class="border-b">
-								<td colspan="10" class="px-6 py-8">
+								<td colspan="13" class="px-6 py-8">
 									<div class="flex flex-col items-center justify-center text-center">
 										<ShieldXIcon class="h-12 w-12 text-muted-foreground/50" />
 										<h3 class="mt-4 text-sm font-medium text-muted-foreground">No customers found</h3>
@@ -595,11 +653,32 @@ const deleteCustomer = async (customer: Customer) => {
 								<td class="px-6 py-4 font-medium">{{ customer.name }}</td>
 								<td class="px-6 py-4">{{ customer.phone || '-' }}</td>
 								<td class="px-6 py-4">{{ customer.email || '-' }}</td>
+								<td class="px-6 py-4">{{ customer.average_ims ? customer.average_ims.toFixed(6) : '-' }}</td>
 								<td class="px-6 py-4">{{ customer.sales_person?.name || '-' }}</td>
 								<td class="px-6 py-4">{{ customer.route?.name || '-' }}</td>
 								<td class="px-6 py-4">{{ customer.county?.name || '-' }}</td>
 								<td class="px-6 py-4">{{ customer.constituency?.name || '-' }}</td>
 								<td class="px-6 py-4">{{ customer.ward?.name || '-' }}</td>
+								<td class="px-6 py-4">
+									<div v-if="customer.customer_kd" class="flex items-center gap-2">
+										<div 
+											class="w-4 h-4 rounded border border-gray-300"
+											:style="{ backgroundColor: customer.customer_kd.color }"
+										></div>
+										<span>{{ customer.customer_kd.name }}</span>
+									</div>
+									<span v-else>-</span>
+								</td>
+								<td class="px-6 py-4">
+									<div v-if="customer.re_reference" class="flex items-center gap-2">
+										<div 
+											class="w-4 h-4 rounded border border-gray-300"
+											:style="{ backgroundColor: customer.re_reference.color }"
+										></div>
+										<span>{{ customer.re_reference.name }}</span>
+									</div>
+									<span v-else>-</span>
+								</td>
 								<td class="px-6 py-4">
 									<span 
 										class="inline-flex items-center px-2 py-1 rounded-full text-xs border"
@@ -704,6 +783,10 @@ const deleteCustomer = async (customer: Customer) => {
 							<span class="text-muted-foreground">Email:</span>
 							<span class="ml-2 truncate">{{ customer.email }}</span>
 						</div>
+						<div v-if="customer.average_ims">
+							<span class="text-muted-foreground">Average IMS:</span>
+							<span class="ml-2">{{ customer.average_ims.toFixed(6) }}</span>
+						</div>
 						<div v-if="customer.sales_person">
 							<span class="text-muted-foreground">Sales Person:</span>
 							<span class="ml-2">{{ customer.sales_person.name }}</span>
@@ -720,13 +803,36 @@ const deleteCustomer = async (customer: Customer) => {
 							<span class="text-muted-foreground">Constituency:</span>
 							<span class="ml-2">{{ customer.constituency.name }}</span>
 						</div>
-						<div v-if="customer.ward" class="sm:col-span-2">
+						<div v-if="customer.ward">
 							<span class="text-muted-foreground">Ward:</span>
 							<span class="ml-2">{{ customer.ward.name }}</span>
+						</div>
+						<div v-if="customer.customer_kd">
+							<span class="text-muted-foreground">Customer KD:</span>
+							<div class="ml-2 flex items-center gap-2">
+								<div 
+									class="w-3 h-3 rounded border border-gray-300"
+									:style="{ backgroundColor: customer.customer_kd.color }"
+								></div>
+								<span>{{ customer.customer_kd.name }}</span>
+							</div>
+						</div>
+						<div v-if="customer.re_reference" class="sm:col-span-2">
+							<span class="text-muted-foreground">RE Reference:</span>
+							<div class="ml-2 flex items-center gap-2">
+								<div 
+									class="w-3 h-3 rounded border border-gray-300"
+									:style="{ backgroundColor: customer.re_reference.color }"
+								></div>
+								<span>{{ customer.re_reference.name }}</span>
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
+
+			<!-- Pagination -->
+			<Pagination :paginationData="customers" />
 
 			<!-- Add/Edit Dialog -->
 			<Dialog :open="showAddDialog" @update:open="showAddDialog = $event">
@@ -771,6 +877,17 @@ const deleteCustomer = async (customer: Customer) => {
 								placeholder="Enter customer address" 
 								:disabled="form.processing" 
 								class="min-h-20"
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="average_ims">Average IMS</Label>
+							<Input 
+								id="average_ims" 
+								type="number" 
+								step="0.000001"
+								v-model="form.average_ims" 
+								placeholder="Enter average IMS value" 
+								:disabled="form.processing" 
 							/>
 						</div>
 						<div class="space-y-2">
@@ -819,6 +936,26 @@ const deleteCustomer = async (customer: Customer) => {
 								:options="routes" 
 								v-model="selectedDialogRoute" 
 								placeholder="Select route" 
+								:disabled="form.processing"
+								:clearable="true"
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="customer_kd_code">Customer KD</Label>
+							<Dropdown 
+								:options="customerKds" 
+								v-model="form.customer_kd_code" 
+								placeholder="Select customer KD" 
+								:disabled="form.processing"
+								:clearable="true"
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="re_ref">RE Reference</Label>
+							<Dropdown 
+								:options="reReferences" 
+								v-model="form.re_ref" 
+								placeholder="Select RE reference" 
 								:disabled="form.processing"
 								:clearable="true"
 							/>

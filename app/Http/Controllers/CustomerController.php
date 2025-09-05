@@ -21,7 +21,9 @@ class CustomerController extends Controller
 			'route', 
 			'county:id,name,code,type,parent_code',
 			'constituency:id,name,code,type,parent_code', 
-			'ward:id,name,code,type,parent_code'
+			'ward:id,name,code,type,parent_code',
+			'customerKd:id,code,name,color',
+			'reReference:id,code,name,color'
 		]);
 
 		// Apply filters
@@ -50,18 +52,25 @@ class CustomerController extends Controller
 			$query->where(function ($q) use ($search) {
 				$q->where('name', 'like', "%{$search}%")
 				  ->orWhere('phone', 'like', "%{$search}%")
-				  ->orWhere('email', 'like', "%{$search}%");
+				  ->orWhere('email', 'like', "%{$search}%")
+				  ->orWhere('average_ims', 'like', "%{$search}%");
 			});
 		}
 
+		// Get per page value from request, default to 15
+		$perPage = $request->get('per_page', 15);
+		$perPage = in_array($perPage, [10, 15, 25, 50, 100]) ? $perPage : 15;
+
 		return Inertia::render('Customers/Index', [
 			"customers" => Inertia::merge(
-				$query->orderBy('name')->paginate()->withQueryString()
+				$query->orderBy('name')->paginate($perPage)->withQueryString()
 			),
 			"salesPersonnel" => SalesPerson::active()->orderBy('name')->get(),
 			"routes" => Route::active()->orderBy('name')->get(),
 			"counties" => Boundary::getCounties(),
-			"filters" => $request->only(['sales_person_id', 'route_id', 'county_id', 'constituency_id', 'ward_id', 'search'])
+			"customerKds" => \App\Models\CustomerKd::orderBy('code')->get(),
+			"reReferences" => \App\Models\ReReference::active()->orderBy('code')->get(),
+			"filters" => $request->only(['sales_person_id', 'route_id', 'county_id', 'constituency_id', 'ward_id', 'search', 'per_page'])
 		]);
 	}
 
@@ -146,11 +155,14 @@ class CustomerController extends Controller
 			'phone' => 'nullable|string|max:255',
 			'email' => 'nullable|email|max:255',
 			'address' => 'nullable|string|max:500',
+			'average_ims' => 'nullable|numeric|min:0|max:999999.999999',
 			'county_code' => 'nullable|string|max:255',
 			'constituency_code' => 'nullable|string|max:255',
 			'ward_code' => 'nullable|string|max:255',
 			'sales_person_id' => 'nullable|exists:sales_people,id',
 			'route_id' => 'nullable|exists:routes,id',
+			'customer_kd_code' => 'nullable|exists:customer_kds,code',
+			're_ref' => 'nullable|exists:re_references,code',
 		];
 	}
 

@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { KeySquare, Shield, Users, LayoutGrid, UsersRound, SquareUserRound, Handshake, MapPinned, Route, Map } from 'lucide-vue-next';
+import { KeySquare, Shield, Users, LayoutGrid, UsersRound, SquareUserRound, Handshake, MapPinned, Route, Map, Building2, FileText } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -33,6 +33,16 @@ const mainNavItems: NavItem[] = [
 		title: 'Customers',
 		href: '/customers',
 		icon: UsersRound,
+	},
+	{
+		title: 'Customer KDs',
+		href: '/customer-kds',
+		icon: Building2,
+	},
+	{
+		title: 'RE References',
+		href: '/re-references',
+		icon: FileText,
 	},
 	{
 		title: 'Partners',

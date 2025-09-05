@@ -21,7 +21,10 @@ class Customer extends Model
 		'ward_id',
 		'sales_person_id',
 		'route_id',
-		'is_active'
+		'is_active',
+		'customer_kd_code',
+		're_ref',
+		'average_ims'
 	];
 
 	protected $casts = [
@@ -58,6 +61,18 @@ class Customer extends Model
 	public function activate(): bool
 	{
 		return $this->update(['is_active' => true]);
+	}
+
+	public function kd(){
+		return $this->belongsTo(CustomerKd::class, 'customer_kd_code', 'code');
+	}
+
+	/**
+	 * Get the customer KD that owns the customer.
+	 */
+	public function customerKd()
+	{
+		return $this->belongsTo(CustomerKd::class, 'customer_kd_code', 'code');
 	}
 
 	/**
@@ -101,5 +116,13 @@ class Customer extends Model
 	{
 		return $this->belongsTo(Boundary::class, 'ward_id')
 			->where('type', 'ward');
+	}
+
+	/**
+	 * Get the RE reference for the customer.
+	 */
+	public function reReference()
+	{
+		return $this->belongsTo(ReReference::class, 're_ref', 'code');
 	}
 }

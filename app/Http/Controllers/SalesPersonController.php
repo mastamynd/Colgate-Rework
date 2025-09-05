@@ -31,6 +31,7 @@ class SalesPersonController extends Controller
 			'email' => 'nullable|email|max:255',
 			'phone' => 'nullable|string|max:255',
 			'type' => 'nullable|in:Sales Representative,Distributor',
+			'color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
 		]);
 
 		SalesPerson::create($request->all());
@@ -49,6 +50,7 @@ class SalesPersonController extends Controller
 			'email' => 'nullable|email|max:255',
 			'phone' => 'nullable|string|max:255',
 			'type' => 'nullable|in:Sales Representative,Distributor',
+			'color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
 		]);
 
 		$sales_personnel->update($request->all());

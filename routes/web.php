@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerKdController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemarcationController;
 use App\Http\Controllers\MapDataController;
 use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ReReferenceController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\SalesPersonController;
@@ -29,6 +31,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 	Route::patch('customers/{customer}/activate', [CustomerController::class, 'activate'])->name('customers.activate');
 	Route::get('customers/boundaries/constituencies/{countyCode}', [CustomerController::class, 'getConstituencies'])->name('customers.constituencies');
 	Route::get('customers/boundaries/wards/{constituencyCode}', [CustomerController::class, 'getWards'])->name('customers.wards');
+	Route::resource('customer-kds', CustomerKdController::class);
+	Route::resource('re-references', ReReferenceController::class);
+	Route::patch('re-references/{re_reference}/deactivate', [ReReferenceController::class, 'deactivate'])->name('re-references.deactivate');
+	Route::patch('re-references/{re_reference}/activate', [ReReferenceController::class, 'activate'])->name('re-references.activate');
 	Route::resource('routes', RouteController::class);
 	Route::patch('routes/{route}/deactivate', [RouteController::class, 'deactivate'])->name('routes.deactivate');
 	Route::patch('routes/{route}/activate', [RouteController::class, 'activate'])->name('routes.activate');

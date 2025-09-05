@@ -30,6 +30,7 @@ class RouteController extends Controller
 		$request->validate([
 			'name' => 'required|string|max:255',
 			'description' => 'required|string|max:500',
+			'color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
 		]);
 
 		// For now, we'll create a simple point geometry as a placeholder
@@ -56,12 +57,14 @@ class RouteController extends Controller
 		$request->validate([
 			'name' => 'required|string|max:255',
 			'description' => 'required|string|max:500',
+			'color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
 		]);
 
-		// Keep the existing geometry, only update name and description
+		// Keep the existing geometry, only update name, description, and color
 		$route->update([
 			'name' => $request->name,
 			'description' => $request->description,
+			'color' => $request->color,
 		]);
 
 		return redirect()->route('routes.index')->with('success', 'Route updated successfully.');
